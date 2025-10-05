@@ -1,0 +1,2190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpaceTrash - LEO Commercial Revolution</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        @keyframes warning {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.3); }
+            50% { background-color: rgba(239, 68, 68, 0.8); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        @keyframes shine {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes galaxy {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        @keyframes heartBeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+        @keyframes build {
+            0% { transform: scale(0.8) rotate(-5deg); }
+            50% { transform: scale(1.1) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .animate-bounce { animation: bounce 1s infinite; }
+        .animate-warning { animation: warning 1s infinite; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-shine {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            background-size: 200% 100%;
+            animation: shine 2s infinite;
+        }
+        .animate-galaxy {
+            animation: galaxy 20s linear infinite;
+        }
+        .animate-heartbeat {
+            animation: heartBeat 0.5s ease-in-out;
+        }
+        .animate-build {
+            animation: build 0.5s ease-in-out;
+        }
+        .character-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 3px solid;
+        }
+        .character-image-large {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 4px solid;
+        }
+        .crafting-item {
+            transition: all 0.3s ease;
+        }
+        .crafting-item:hover {
+            transform: translateY(-5px);
+        }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const SpaceTrashApp = () => {
+          const [score, setScore] = useState(0);
+          const [recycledItems, setRecycledItems] = useState(0);
+          const [selectedTrash, setSelectedTrash] = useState(null);
+          const [showInfo, setShowInfo] = useState(false);
+          const [gameStarted, setGameStarted] = useState(false);
+          const [floatingTrash, setFloatingTrash] = useState([]);
+          const [timeLeft, setTimeLeft] = useState(60);
+          const [gameLevel, setGameLevel] = useState(1);
+          const [gameOver, setGameOver] = useState(false);
+          const [nasaFacts, setNasaFacts] = useState([]);
+          const [currentFact, setCurrentFact] = useState(0);
+          const [showLeaderboard, setShowLeaderboard] = useState(false);
+          const [satellites, setSatellites] = useState([]);
+          const [leaderboard, setLeaderboard] = useState([]);
+          const [dailyRecord, setDailyRecord] = useState(0);
+          const [currentTab, setCurrentTab] = useState('game');
+          const [userProfile, setUserProfile] = useState(null);
+          const [totalCoins, setTotalCoins] = useState(0);
+          const [ownedCharacters, setOwnedCharacters] = useState([]);
+          const [selectedCharacter, setSelectedCharacter] = useState(null);
+          const [lives, setLives] = useState(3);
+          const [characterBonus, setCharacterBonus] = useState(null);
+          const [collectedResources, setCollectedResources] = useState({});
+          const [craftingItems, setCraftingItems] = useState([]);
+          const [showCrafting, setShowCrafting] = useState(false);
+          const [activeCrafting, setActiveCrafting] = useState(null);
+          const [craftingProgress, setCraftingProgress] = useState(0);
+
+          // Регионы для выбора
+          const regions = [
+            { id: 'asia', name: '🌏 Азия', flag: '🇰🇿' },
+            { id: 'europe', name: '🇪🇺 Европа', flag: '🇷🇺' },
+            { id: 'north-america', name: '🇺🇸 Северная Америка', flag: '🇺🇸' },
+            { id: 'south-america', name: '🇧🇷 Южная Америка', flag: '🇧🇷' },
+            { id: 'africa', name: '🌍 Африка', flag: '🇿🇦' },
+            { id: 'oceania', name: '🇦🇺 Океания', flag: '🇦🇺' },
+            { id: 'middle-east', name: '🌅 Ближний Восток', flag: '🇸🇦' }
+          ];
+
+          // Космические персонажи для магазина с расширенной информацией и бонусами
+          const spaceCharacters = [
+            {
+              id: 1,
+              name: "Юрий Гагарин",
+              country: "🇷🇺 Россия",
+              role: "Первый человек в космосе",
+              price: 1000,
+              icon: "👨‍🚀",
+              image: "https://www.kt.kz/neofiles/serve-image/6409c773d6a86c151f174ee5",
+              description: "12 апреля 1961 года совершил первый в истории человечества космический полет на корабле 'Восток-1'",
+              fullBio: "Юрий Алексеевич Гагарин (1934-1968) - советский летчик-космонавт, Герой Советского Союза. Его полет длился 108 минут и совершил один виток вокруг Земли. Стал международной знаменитостью и символом советских космических достижений. Погиб во время тренировочного полета на самолете МиГ-15.",
+              achievements: [
+                "Первый человек в космосе",
+                "Герой Советского Союза",
+                "Золотая медаль имени К. Э. Циолковского"
+              ],
+              mission: "Восток-1, 12 апреля 1961",
+              duration: "108 минут",
+              rarity: "legendary",
+              bonus: {
+                type: "score",
+                value: 1.2,
+                description: "×1.2 очков за переработку",
+                icon: "⭐"
+              },
+              unlocked: true
+            },
+            {
+              id: 2,
+              name: "Нил Армстронг",
+              country: "🇺🇸 США", 
+              role: "Первый человек на Луне",
+              price: 1200,
+              icon: "🌕",
+              image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Neil_Armstrong_pose.jpg/960px-Neil_Armstrong_pose.jpg",
+              description: "20 июля 1969 года первым ступил на поверхность Луны с корабля 'Аполлон-11'",
+              fullBio: "Нил Олден Армстронг (1930-2012) - американский астронавт NASA, летчик-испытатель, инженер. До becoming астронавтом служил в ВМС США и участвовал в Корейской войне. Его знаменитая фраза 'Это один маленький шаг для человека, но гигантский скачок для человечества' стала символом космической эры.",
+              achievements: [
+                "Первый человек на Луне",
+                "Президентская медаль Свободы",
+                "Космическая медаль почёта Конгресса"
+              ],
+              mission: "Аполлон-11, 16-24 июля 1969",
+              duration: "8 дней, 3 часа",
+              rarity: "legendary",
+              bonus: {
+                type: "time",
+                value: 15,
+                description: "+15 секунд к таймеру",
+                icon: "⏱️"
+              }
+            },
+            {
+              id: 3,
+              name: "Токтар Аубакиров",
+              country: "🇰🇿 Казахстан",
+              role: "Первый казахский космонавт",
+              price: 800,
+              icon: "🚀",
+              image: "https://images-cdn.onlinetestpad.net/cc/8e/2a7cbe4348a99bfba117e34b6bd4.jpg",
+              description: "Совершил полет на космическом корабле Союз ТМ-13 в 1991 году",
+              fullBio: "Токтар Онгарбаевич Аубакиров (род. 1946) - первый казахский космонавт, летчик-испытатель 1-го класса, Герой Советского Союза. Совершил космический полет на корабле 'Союз ТМ-13' и орбитальном комплексе 'Мир' со 2 по 10 октября 1991 года. Провел в космосе 7 дней 22 часа 12 минут.",
+              achievements: [
+                "Первый космонавт Казахстана",
+                "Герой Советского Союза",
+                "Заслуженный летчик-испытатель СССР"
+              ],
+              mission: "Союз ТМ-13, 2-10 октября 1991",
+              duration: "7 дней, 22 часа",
+              rarity: "epic",
+              bonus: {
+                type: "lives",
+                value: 1,
+                description: "+1 дополнительная жизнь",
+                icon: "❤️"
+              }
+            },
+            {
+              id: 4,
+              name: "Талгат Мусабаев",
+              country: "🇰🇿 Казахстан",
+              role: "Герой России и Казахстана",
+              price: 1500,
+              icon: "⭐",
+              image: "https://warheroes.ru/content/images/heroes/GRF/Musabaev_Talgat_Aman.jpg",
+              description: "Совершил 3 космических полета, провел в космосе 341 день",
+              fullBio: "Талгат Амангельдиевич Мусабаев (род. 1951) - казахский космонавт, летчик-космонавт Казахстана, Герой России и Народный Герой Казахстана. Совершил три космических полета общей продолжительностью 341 день. Был командиром корабля 'Союз ТМ-32' и бортинженером на станции 'Мир'. Участвовал в 7 выходах в открытый космос.",
+              achievements: [
+                "Три космических полета",
+                "Герой Российской Федерации",
+                "Народный Герой Казахстана",
+                "7 выходов в открытый космос"
+              ],
+              mission: "Союз ТМ-19, ТМ-27, ТМ-32",
+              duration: "341 день всего",
+              rarity: "mythic",
+              bonus: {
+                type: "score",
+                value: 1.5,
+                description: "×1.5 очков за переработку",
+                icon: "💎"
+              }
+            },
+            {
+              id: 5,
+              name: "Айдын Аимбетов",
+              country: "🇰🇿 Казахстан",
+              role: "Космонавт Республики Казахстан",
+              price: 600,
+              icon: "🛰️",
+              image: "https://starcity-tours.ru/wp-content/uploads/2015/09/aimbetov.jpg",
+              description: "Участвовал в экспедиции на МКС в 2015 году",
+              fullBio: "Айдын Аканович Аимбетов (род. 1972) - казахский космонавт, летчик 1-го класса. Совершил космический полет на корабле 'Союз ТМА-18М' к Международной космической станции со 2 по 12 сентября 2015 года. Провел в космосе 9 дней 20 часов 13 минут. Выполнил программу научных экспериментов 'Ғарыш-Тарих'.",
+              achievements: [
+                "Участник экспедиции МКС",
+                "Летчик 1-го класса",
+                "Посол казахстанской космонавтики"
+              ],
+              mission: "Союз ТМА-18М, 2-12 сентября 2015",
+              duration: "9 дней, 20 часов",
+              rarity: "rare",
+              bonus: {
+                type: "time",
+                value: 10,
+                description: "+10 секунд к таймеру",
+                icon: "⏰"
+              }
+            },
+            {
+              id: 6,
+              name: "Валентина Терешкова",
+              country: "🇷🇺 Россия",
+              role: "Первая женщина-космонавт",
+              price: 900,
+              icon: "👩‍🚀",
+              image: "https://yarplaneta.ru/upload/iblock/60d/opw9gjcpkzsuei5cs1cahbkw5kzsb07i.jpg",
+              description: "16 июня 1963 года совершила полет в космос на корабле Восток-6",
+              fullBio: "Валентина Владимировна Терешкова (род. 1937) - советский космонавт, первая в мире женщина-космонавт, Герой Советского Союза. Совершила полет на корабле 'Восток-6' 16-19 июня 1963 года. Провела в космосе 2 дня 22 часа 50 минут, совершив 48 витков вокруг Земли. До сих пор остается единственной женщиной, совершившей одиночный космический полет.",
+              achievements: [
+                "Первая женщина в космосе",
+                "Герой Советского Союза",
+                "Медаль 'Золотая Звезда'"
+              ],
+              mission: "Восток-6, 16-19 июня 1963",
+              duration: "2 дня, 22 часа",
+              rarity: "epic",
+              bonus: {
+                type: "protection",
+                value: 1,
+                description: "Защита от первого спутника",
+                icon: "🛡️"
+              }
+            },
+            {
+              id: 7,
+              name: "Сергей Королев",
+              country: "🇷🇺 Россия",
+              role: "Главный конструктор",
+              price: 2000,
+              icon: "🔧",
+              image: "https://ssau.ru/storage/news/19941/headImage/file_6660388fd17089.96321593.png",
+              description: "Основоположник практической космонавтики",
+              fullBio: "Сергей Павлович Королев (1907-1966) - советский ученый, конструктор ракетно-космической техники. Главный организатор производства ракетно-космической техники в СССР. Под его руководством был запущен первый искусственный спутник Земли и осуществлен первый полет человека в космос. Считается отцом советской космической программы.",
+              achievements: [
+                "Отец советской космической программы",
+                "Главный конструктор ОКБ-1",
+                "Дважды Герой Социалистического Труда"
+              ],
+              mission: "Руководитель советской космической программы",
+              duration: "Пожизненно",
+              rarity: "mythic",
+              bonus: {
+                type: "score",
+                value: 2.0,
+                description: "×2.0 очков за переработку",
+                icon: "🚀"
+              }
+            },
+            {
+              id: 8,
+              name: "Алексей Леонов",
+              country: "🇷🇺 Россия",
+              role: "Первый человек в открытом космосе",
+              price: 1100,
+              icon: "👨‍🚀",
+              image: "https://spacegid.com/wp-content/uploads/2016/08/2.jpg",
+              description: "18 марта 1965 года первым вышел в открытый космос",
+              fullBio: "Алексей Архипович Леонов (1934-2019) - советский космонавт, первый человек, вышедший в открытый космос. Его выход продолжался 12 минут 9 секунд. Также был командиром советского экипажа в программе 'Союз-Аполлон' - первой международной космической миссии. Художник, автор многих картин на космическую тематику.",
+              achievements: [
+                "Первый выход в открытый космос",
+                "Дважды Герой Советского Союза",
+                "Участник программы 'Союз-Аполлон'"
+              ],
+              mission: "Восход-2, 18-19 марта 1965",
+              duration: "1 день, 2 часа",
+              rarity: "legendary",
+              bonus: {
+                type: "lives",
+                value: 2,
+                description: "+2 дополнительные жизни",
+                icon: "💖"
+              }
+            }
+          ];
+
+          // Система крафта - предметы которые можно создать из ресурсов
+          const craftingRecipes = [
+            {
+              id: 1,
+              name: "Орбитальный 3D-принтер",
+              icon: "🖨️",
+              description: "Печатает инструменты и запчасти из переработанного пластика",
+              benefits: "Увеличивает очки за пластик на 50%",
+              cost: {
+                plastic: 50,
+                metal: 20,
+                electronics: 10
+              },
+              buildTime: 10, // секунды
+              type: "upgrade",
+              rarity: "rare"
+            },
+            {
+              id: 2,
+              name: "Солнечная панель",
+              icon: "☀️",
+              description: "Генерирует энергию для станции из переработанных материалов",
+              benefits: "+5 секунд к таймеру за уровень",
+              cost: {
+                electronics: 30,
+                metal: 15,
+                plastic: 10
+              },
+              buildTime: 15,
+              type: "energy",
+              rarity: "uncommon"
+            },
+            {
+              id: 3,
+              name: "Гидропонная ферма",
+              icon: "🌱",
+              description: "Выращивает растения для производства кислорода и пищи",
+              benefits: "+1 жизнь каждые 2 уровня",
+              cost: {
+                organic: 40,
+                containers: 20,
+                plastic: 15
+              },
+              buildTime: 20,
+              type: "life",
+              rarity: "epic"
+            },
+            {
+              id: 4,
+              name: "Робот-уборщик",
+              icon: "🤖",
+              description: "Автоматически собирает космический мусор",
+              benefits: "Авто-сбор мусора каждые 10 секунд",
+              cost: {
+                electronics: 50,
+                metal: 30,
+                plastic: 20
+              },
+              buildTime: 25,
+              type: "auto",
+              rarity: "legendary"
+            },
+            {
+              id: 5,
+              name: "Радиотелескоп",
+              icon: "📡",
+              description: "Улучшает связь и обнаружение мусора",
+              benefits: "Увеличивает радиус сбора мусора",
+              cost: {
+                electronics: 40,
+                metal: 25,
+                textile: 10
+              },
+              buildTime: 18,
+              type: "upgrade",
+              rarity: "rare"
+            },
+            {
+              id: 6,
+              name: "Медицинский модуль",
+              icon: "🏥",
+              description: "Обеспечивает медицинскую поддержку экипажа",
+              benefits: "+2 дополнительные жизни",
+              cost: {
+                medical: 35,
+                electronics: 20,
+                plastic: 15
+              },
+              buildTime: 22,
+              type: "life",
+              rarity: "epic"
+            },
+            {
+              id: 7,
+              name: "Топливный завод",
+              icon: "⛽",
+              description: "Производит топливо из переработанных материалов",
+              benefits: "Увеличивает скорость движения мусора на 20%",
+              cost: {
+                metal: 45,
+                electronics: 25,
+                containers: 20
+              },
+              buildTime: 30,
+              type: "upgrade",
+              rarity: "legendary"
+            },
+            {
+              id: 8,
+              name: "Жилой модуль",
+              icon: "🏠",
+              description: "Расширяет жилое пространство станции",
+              benefits: "Увеличивает максимальное количество жизней до 8",
+              cost: {
+                metal: 60,
+                plastic: 30,
+                textile: 20
+              },
+              buildTime: 35,
+              type: "life",
+              rarity: "mythic"
+            }
+          ];
+
+          // Расширенные данные NASA для LEO
+          const nasaFactsByLevel = {
+            1: [
+              {
+                source: "NASA Commercial LEO Development Program 2024",
+                data: "В LEO находится более 6000 активных спутников и 9000 тонн космического мусора",
+                impact: "Коммерческая утилизация мусора - растущий рынок"
+              },
+              {
+                source: "NASA Orbital Debris Mitigation",
+                data: "Столкновение с обломком размером 1 см может вывести из строя спутник",
+                impact: "Очистка орбиты критически важна для коммерческих операций"
+              },
+              {
+                source: "ISS National Laboratory",
+                data: "МКС принимает коммерческие исследовательские миссии с 2005 года",
+                impact: "LEO становится платформой для бизнеса и науки"
+              },
+              {
+                source: "NASA Technology Transfer",
+                data: "Переработанные материалы используются для 3D-печати запчастей на МКС",
+                impact: "Круговая экономика в космосе снижает затраты"
+              },
+              {
+                source: "Commercial Crew Program",
+                data: "Частные компании доставляют астронавтов на МКС с 2020 года",
+                impact: "Коммерциализация снижает стоимость доступа в космос"
+              }
+            ],
+            2: [
+              {
+                source: "NASA Orbital Sustainability Report",
+                data: "Рынок услуг по обслуживанию спутников оценивается в $3 млрд к 2030",
+                impact: "LEO становится коммерческой зоной деятельности"
+              },
+              {
+                source: "Space Commerce Institute",
+                data: "Металл от старых спутников переплавляется в строительные материалы для орбитальных станций",
+                impact: "Снижение зависимости от земных поставок"
+              },
+              {
+                source: "Commercial Space Innovation",
+                data: "Текстильные отходы становятся изоляцией для коммерческих модулей",
+                impact: "Максимальное использование ресурсов"
+              },
+              {
+                source: "LEO Business Analytics",
+                data: "Электронные компоненты содержат редкие металлы для новых систем",
+                impact: "Цепочка поставок на орбите"
+              },
+              {
+                source: "Orbital Manufacturing",
+                data: "Сломанные солнечные панели перерабатываются в новые энергетические системы",
+                impact: "Самодостаточность коммерческих станций"
+              }
+            ],
+            3: [
+              {
+                source: "NASA Future LEO Economy",
+                data: "Коммерческие станции должны работать автономно 5+ лет",
+                impact: "Долгосрочная устойчивость бизнес-моделей"
+              },
+              {
+                source: "AI Orbital Management",
+                data: "ИИ оптимизирует сбор мусора с эффективностью 98%",
+                impact: "Максимизация прибыли от утилизации"
+              },
+              {
+                source: "Nanotechnology in Space",
+                data: "Нанофильтры очищают воздух от частиц пластика на частных станциях",
+                impact: "Поддержание качества среды для космических туристов"
+              },
+              {
+                source: "Robotic Servicing",
+                data: "Роботы-уборщики обслуживают коммерческие спутниковые группировки",
+                impact: "Автоматизация снижает операционные расходы"
+              },
+              {
+                source: "Orbital Commerce Vision",
+                data: "Переработанные материалы используются для расширения коммерческих станций",
+                impact: "Рост инфраструктуры без новых запусков"
+              }
+            ]
+          };
+
+          const difficultyLevels = {
+            1: { 
+              name: "OPERATOR", 
+              spawnRate: 2500, 
+              speed: 0.3, 
+              targetScore: 300,
+              color: "green",
+              description: "Управление коммерческой станцией LEO"
+            },
+            2: { 
+              name: "MANAGER", 
+              spawnRate: 1800, 
+              speed: 0.5, 
+              targetScore: 600,
+              color: "blue",
+              description: "Оптимизация орбитального бизнеса"
+            },
+            3: { 
+              name: "DIRECTOR", 
+              spawnRate: 1200, 
+              speed: 0.8, 
+              targetScore: 1000,
+              color: "purple",
+              description: "Стратегическое развитие LEO-экономики"
+            }
+          };
+
+          const trashTypes = [
+            {
+              id: 1,
+              name: 'Satellite Parts',
+              icon: '🛰️',
+              category: 'metal',
+              color: 'bg-blue-500',
+              points: 50,
+              info: 'Metal from old satellites can be melted and reformed into new orbital infrastructure.',
+              recycleInto: '🏗️ Construction Materials',
+              nasaFact: 'NASA развивает технологии переработки металлов для коммерческих станций LEO',
+              resource: 'metal'
+            },
+            {
+              id: 2,
+              name: 'Plastic Packaging',
+              icon: '📦',
+              category: 'plastic',
+              color: 'bg-purple-500',
+              points: 30,
+              info: 'Plastic waste can be converted into 3D printing filament for manufacturing tools and parts.',
+              recycleInto: '🖨️ 3D Printer Filament',
+              nasaFact: 'Коммерческие миссии используют 3D-принтеры для создания инструментов из переработанного пластика',
+              resource: 'plastic'
+            },
+            {
+              id: 3,
+              name: 'Electronic Waste',
+              icon: '⚡',
+              category: 'electronics',
+              color: 'bg-yellow-500',
+              points: 70,
+              info: 'Precious metals from electronics can be extracted and reused in new satellite systems.',
+              recycleInto: '☀️ Solar Panel Components',
+              nasaFact: 'NASA извлекает редкие металлы из электронных отходов для новых коммерческих систем',
+              resource: 'electronics'
+            },
+            {
+              id: 4,
+              name: 'Water Containers',
+              icon: '💧',
+              category: 'containers',
+              color: 'bg-cyan-500',
+              points: 40,
+              info: 'Containers can be sterilized and repurposed for storing water and supplies.',
+              recycleInto: '🌱 Life Support Systems',
+              nasaFact: 'Система ECLSS на МКС перерабатывает 93% воды для коммерческих нужд',
+              resource: 'containers'
+            },
+            {
+              id: 5,
+              name: 'Food Packaging',
+              icon: '🍱',
+              category: 'organic',
+              color: 'bg-green-500',
+              points: 25,
+              info: 'Organic waste can be processed for agricultural experiments on orbit.',
+              recycleInto: '🌾 Experimental Farms',
+              nasaFact: 'NASA тестирует биореакторы для превращения органических отходов в ресурсы',
+              resource: 'organic'
+            },
+            {
+              id: 6,
+              name: 'Fabric & Cloth',
+              icon: '👕',
+              category: 'textile',
+              color: 'bg-red-500',
+              points: 35,
+              info: 'Textile waste can be processed into insulation material for commercial modules.',
+              recycleInto: '🧥 Thermal Insulation',
+              nasaFact: 'Текстильные отходы перерабатываются в изоляционные материалы для частных станций',
+              resource: 'textile'
+            },
+            {
+              id: 7,
+              name: 'Biomedical Waste',
+              icon: '💊',
+              category: 'medical',
+              color: 'bg-pink-500',
+              points: 60,
+              info: 'Sterilized medical waste can be repurposed for research containers.',
+              recycleInto: '🔬 Lab Equipment',
+              nasaFact: 'NASA разрабатывает системы стерилизации для коммерческих медицинских миссий',
+              resource: 'medical'
+            },
+            {
+              id: 8,
+              name: 'Solar Panel Fragments',
+              icon: '☀️',
+              category: 'electronics',
+              color: 'bg-orange-500',
+              points: 80,
+              info: 'Damaged solar panels contain valuable materials that can be reused.',
+              recycleInto: '⚡ New Solar Cells',
+              nasaFact: 'Кремний из старых солнечных панелей перерабатывается для новых энергетических систем LEO',
+              resource: 'electronics'
+            }
+          ];
+
+          const recyclingBins = [
+            { category: 'metal', name: 'Metals', color: 'bg-blue-600' },
+            { category: 'plastic', name: 'Plastics', color: 'bg-purple-600' },
+            { category: 'electronics', name: 'Electronics', color: 'bg-yellow-600' },
+            { category: 'containers', name: 'Containers', color: 'bg-cyan-600' },
+            { category: 'organic', name: 'Organics', color: 'bg-green-600' },
+            { category: 'textile', name: 'Textiles', color: 'bg-red-600' },
+            { category: 'medical', name: 'Medical', color: 'bg-pink-600' }
+          ];
+
+          // Инициализация пользователя и данных
+          useEffect(() => {
+            const savedLeaderboard = JSON.parse(localStorage.getItem('spaceTrashLeaderboard')) || [];
+            const savedDailyRecord = JSON.parse(localStorage.getItem('spaceTrashDailyRecord')) || { date: new Date().toDateString(), score: 0 };
+            const savedProfile = JSON.parse(localStorage.getItem('spaceTrashProfile')) || {
+              username: 'LEO Оператор',
+              level: 1,
+              totalCoins: 0,
+              ownedCharacters: [1],
+              selectedCharacter: 1,
+              region: 'asia'
+            };
+            const savedCharacters = JSON.parse(localStorage.getItem('spaceTrashCharacters')) || spaceCharacters;
+            const savedResources = JSON.parse(localStorage.getItem('spaceTrashResources')) || {};
+            const savedCrafting = JSON.parse(localStorage.getItem('spaceTrashCrafting')) || [];
+            
+            if (savedDailyRecord.date !== new Date().toDateString()) {
+              savedDailyRecord.score = 0;
+              savedDailyRecord.date = new Date().toDateString();
+            }
+            
+            setLeaderboard(savedLeaderboard);
+            setDailyRecord(savedDailyRecord.score);
+            setUserProfile(savedProfile);
+            setTotalCoins(savedProfile.totalCoins);
+            setOwnedCharacters(savedProfile.ownedCharacters);
+            setSelectedCharacter(savedProfile.selectedCharacter);
+            setCollectedResources(savedResources);
+            setCraftingItems(savedCrafting);
+
+            // Применяем бонус выбранного персонажа
+            const selectedChar = spaceCharacters.find(c => c.id === savedProfile.selectedCharacter);
+            if (selectedChar && selectedChar.bonus) {
+              setCharacterBonus(selectedChar.bonus);
+              // Применяем бонус жизней сразу
+              if (selectedChar.bonus.type === 'lives') {
+                setLives(3 + selectedChar.bonus.value);
+              }
+            }
+
+            // Создание спутников
+            const newSatellites = [
+              { id: 1, x: 15, y: 20, icon: '🛰️', points: -20, name: 'Коммерческий спутник' },
+              { id: 2, x: 85, y: 30, icon: '📡', points: -15, name: 'Коммуникационный' },
+              { id: 3, x: 25, y: 70, icon: '🛸', points: -25, name: 'Исследовательский зонд' },
+              { id: 4, x: 75, y: 60, icon: '🔭', points: -30, name: 'Научный инструмент' }
+            ];
+            setSatellites(newSatellites);
+          }, []);
+
+          // Применение бонуса при смене персонажа
+          useEffect(() => {
+            if (selectedCharacter) {
+              const selectedChar = spaceCharacters.find(c => c.id === selectedCharacter);
+              if (selectedChar && selectedChar.bonus) {
+                setCharacterBonus(selectedChar.bonus);
+                // Сбрасываем жизни и применяем бонус
+                if (selectedChar.bonus.type === 'lives') {
+                  setLives(3 + selectedChar.bonus.value);
+                } else {
+                  setLives(3);
+                }
+              } else {
+                setCharacterBonus(null);
+                setLives(3);
+              }
+            }
+          }, [selectedCharacter]);
+
+          // Проверка на проигрыш при нуле жизней
+          useEffect(() => {
+            if (lives <= 0 && gameStarted && !gameOver) {
+              handleGameEnd();
+            }
+          }, [lives, gameStarted, gameOver]);
+
+          // Таймер игры
+          useEffect(() => {
+            if (gameStarted && !gameOver && timeLeft > 0 && currentTab === 'game') {
+              const timer = setInterval(() => {
+                setTimeLeft(time => {
+                  if (time <= 1) {
+                    handleTimeUp();
+                    return 0;
+                  }
+                  return time - 1;
+                });
+              }, 1000);
+              return () => clearInterval(timer);
+            }
+          }, [gameStarted, gameOver, timeLeft, currentTab]);
+
+          // Спавн мусора в зависимости от уровня сложности
+          useEffect(() => {
+            if (gameStarted && !gameOver && currentTab === 'game') {
+              const interval = setInterval(() => {
+                const randomTrash = trashTypes[Math.floor(Math.random() * trashTypes.length)];
+                const newTrash = {
+                  ...randomTrash,
+                  uniqueId: Date.now() + Math.random(),
+                  x: Math.random() * 80 + 10,
+                  y: -10
+                };
+                setFloatingTrash(prev => [...prev, newTrash]);
+              }, difficultyLevels[gameLevel].spawnRate);
+
+              return () => clearInterval(interval);
+            }
+          }, [gameStarted, gameOver, gameLevel, currentTab]);
+
+          // Анимация движения мусора
+          useEffect(() => {
+            if (floatingTrash.length > 0 && !gameOver && currentTab === 'game') {
+              const interval = setInterval(() => {
+                setFloatingTrash(prev => 
+                  prev.map(trash => ({
+                    ...trash,
+                    y: trash.y + difficultyLevels[gameLevel].speed
+                  })).filter(trash => trash.y < 100)
+                );
+              }, 50);
+
+              return () => clearInterval(interval);
+            }
+          }, [floatingTrash, gameOver, gameLevel, currentTab]);
+
+          // Цикл фактов NASA для текущего уровня
+          useEffect(() => {
+            if (gameStarted && currentTab === 'game') {
+              const factInterval = setInterval(() => {
+                setCurrentFact(prev => (prev + 1) % nasaFactsByLevel[gameLevel].length);
+              }, 6000);
+              return () => clearInterval(factInterval);
+            }
+          }, [gameStarted, gameLevel, currentTab]);
+
+          // Таймер крафта
+          useEffect(() => {
+            if (activeCrafting && craftingProgress < 100) {
+              const interval = setInterval(() => {
+                setCraftingProgress(prev => {
+                  if (prev >= 100) {
+                    completeCrafting();
+                    return 100;
+                  }
+                  return prev + (100 / (activeCrafting.buildTime));
+                });
+              }, 1000);
+              return () => clearInterval(interval);
+            }
+          }, [activeCrafting, craftingProgress]);
+
+          const completeCrafting = () => {
+            if (activeCrafting) {
+              const newCraftingItems = [...craftingItems, activeCrafting];
+              setCraftingItems(newCraftingItems);
+              localStorage.setItem('spaceTrashCrafting', JSON.stringify(newCraftingItems));
+              setActiveCrafting(null);
+              setCraftingProgress(0);
+              
+              // Применяем бонусы от созданного предмета
+              applyCraftingBonus(activeCrafting);
+            }
+          };
+
+          const applyCraftingBonus = (item) => {
+            switch(item.type) {
+              case 'energy':
+                setTimeLeft(prev => prev + 5);
+                break;
+              case 'life':
+                if (item.id === 6) { // Медицинский модуль
+                  setLives(prev => prev + 2);
+                } else if (item.id === 8) { // Жилой модуль
+                  // Максимум жизней увеличивается до 8
+                  // Это будет применяться при следующем рестарте
+                }
+                break;
+              case 'upgrade':
+                // Бонусы применяются автоматически в handleRecycle
+                break;
+              default:
+                break;
+            }
+          };
+
+          const handleTimeUp = () => {
+            if (score >= difficultyLevels[gameLevel].targetScore) {
+              if (gameLevel < 3) {
+                setGameLevel(level => level + 1);
+                // Применяем бонус времени если есть
+                const bonusTime = characterBonus?.type === 'time' ? characterBonus.value : 0;
+                setTimeLeft(60 + bonusTime);
+                setFloatingTrash([]);
+              } else {
+                handleGameEnd();
+              }
+            } else {
+              handleGameEnd();
+            }
+          };
+
+          const handleGameEnd = () => {
+            const coinsEarned = Math.floor(score / 10);
+            const newTotalCoins = totalCoins + coinsEarned;
+            
+            setGameOver(true);
+            setTotalCoins(newTotalCoins);
+
+            const newEntry = {
+              name: userProfile.username,
+              score: score,
+              level: gameLevel,
+              date: new Date().toLocaleDateString(),
+              recycled: recycledItems,
+              region: userProfile.region,
+              lives: lives
+            };
+            
+            const updatedLeaderboard = [...leaderboard, newEntry]
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 10);
+            
+            setLeaderboard(updatedLeaderboard);
+            localStorage.setItem('spaceTrashLeaderboard', JSON.stringify(updatedLeaderboard));
+
+            // Обновление профиля
+            const updatedProfile = {
+              ...userProfile,
+              totalCoins: newTotalCoins,
+              level: Math.max(userProfile.level, gameLevel)
+            };
+            setUserProfile(updatedProfile);
+            localStorage.setItem('spaceTrashProfile', JSON.stringify(updatedProfile));
+
+            if (score > dailyRecord) {
+              setDailyRecord(score);
+              localStorage.setItem('spaceTrashDailyRecord', JSON.stringify({
+                date: new Date().toDateString(),
+                score: score
+              }));
+            }
+          };
+
+          const handleRecycle = (bin) => {
+            if (selectedTrash && selectedTrash.category === bin.category) {
+              // Применяем бонус множителя очков
+              const pointsMultiplier = characterBonus?.type === 'score' ? characterBonus.value : 1;
+              const earnedPoints = Math.floor(selectedTrash.points * pointsMultiplier);
+              
+              const newScore = score + earnedPoints;
+              setScore(newScore);
+              setRecycledItems(recycledItems + 1);
+              
+              // Добавляем ресурсы
+              if (selectedTrash.resource) {
+                const newResources = {
+                  ...collectedResources,
+                  [selectedTrash.resource]: (collectedResources[selectedTrash.resource] || 0) + 1
+                };
+                setCollectedResources(newResources);
+                localStorage.setItem('spaceTrashResources', JSON.stringify(newResources));
+              }
+              
+              setSelectedTrash(null);
+              setShowInfo(false);
+              
+              if (newScore >= difficultyLevels[gameLevel].targetScore && timeLeft > 10) {
+                setTimeLeft(10);
+              }
+
+              const binElement = document.getElementById(`bin-${bin.category}`);
+              if (binElement) {
+                binElement.classList.add('scale-110');
+                setTimeout(() => binElement.classList.remove('scale-110'), 200);
+              }
+            } else if (selectedTrash) {
+              setScore(Math.max(0, score - 10));
+              setSelectedTrash(null);
+              setShowInfo(false);
+            }
+          };
+
+          const handleTrashClick = (trash) => {
+            setFloatingTrash(prev => prev.filter(t => t.uniqueId !== trash.uniqueId));
+            setSelectedTrash(trash);
+            setShowInfo(true);
+          };
+
+          const handleSatelliteClick = (satellite) => {
+            if (score >= Math.abs(satellite.points)) {
+              setScore(score + satellite.points);
+              
+              // Отнимаем жизнь (кроме случая с защитой)
+              const hasProtection = characterBonus?.type === 'protection' && characterBonus.used === false;
+              if (!hasProtection) {
+                setLives(prev => {
+                  const newLives = prev - 1;
+                  if (newLives <= 0) {
+                    handleGameEnd();
+                  }
+                  return newLives;
+                });
+              } else {
+                // Используем защиту один раз
+                setCharacterBonus(prev => ({...prev, used: true}));
+              }
+              
+              const satElement = document.getElementById(`satellite-${satellite.id}`);
+              if (satElement) {
+                satElement.classList.add('scale-150');
+                setTimeout(() => satElement.classList.remove('scale-150'), 300);
+              }
+            }
+          };
+
+          const handleBuyCharacter = (character) => {
+            if (totalCoins >= character.price && !ownedCharacters.includes(character.id)) {
+              const newTotalCoins = totalCoins - character.price;
+              const newOwnedCharacters = [...ownedCharacters, character.id];
+              
+              setTotalCoins(newTotalCoins);
+              setOwnedCharacters(newOwnedCharacters);
+              
+              const updatedProfile = {
+                ...userProfile,
+                totalCoins: newTotalCoins,
+                ownedCharacters: newOwnedCharacters
+              };
+              setUserProfile(updatedProfile);
+              localStorage.setItem('spaceTrashProfile', JSON.stringify(updatedProfile));
+
+              const updatedCharacters = spaceCharacters.map(c => 
+                c.id === character.id ? { ...c, unlocked: true } : c
+              );
+              localStorage.setItem('spaceTrashCharacters', JSON.stringify(updatedCharacters));
+            }
+          };
+
+          const handleSelectCharacter = (characterId) => {
+            setSelectedCharacter(characterId);
+            const updatedProfile = {
+              ...userProfile,
+              selectedCharacter: characterId
+            };
+            setUserProfile(updatedProfile);
+            localStorage.setItem('spaceTrashProfile', JSON.stringify(updatedProfile));
+          };
+
+          const handleProfileUpdate = (updates) => {
+            const updatedProfile = {
+              ...userProfile,
+              ...updates
+            };
+            setUserProfile(updatedProfile);
+            localStorage.setItem('spaceTrashProfile', JSON.stringify(updatedProfile));
+          };
+
+          const handleCraftItem = (recipe) => {
+            // Проверяем достаточно ли ресурсов
+            const canCraft = Object.entries(recipe.cost).every(([resource, amount]) => 
+              collectedResources[resource] >= amount
+            );
+
+            if (canCraft) {
+              // Вычитаем ресурсы
+              const newResources = { ...collectedResources };
+              Object.entries(recipe.cost).forEach(([resource, amount]) => {
+                newResources[resource] -= amount;
+              });
+              setCollectedResources(newResources);
+              localStorage.setItem('spaceTrashResources', JSON.stringify(newResources));
+
+              // Начинаем строительство
+              setActiveCrafting(recipe);
+              setCraftingProgress(0);
+            }
+          };
+
+          const formatTime = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+          };
+
+          const restartGame = () => {
+            setGameStarted(false);
+            setGameOver(false);
+            setGameLevel(1);
+            setScore(0);
+            setRecycledItems(0);
+            // Применяем бонус времени при рестарте
+            const bonusTime = characterBonus?.type === 'time' ? characterBonus.value : 0;
+            setTimeLeft(60 + bonusTime);
+            setFloatingTrash([]);
+            setSelectedTrash(null);
+            setShowInfo(false);
+            setShowLeaderboard(false);
+            setCurrentTab('game');
+            // Сбрасываем жизни с учетом бонуса
+            const baseLives = characterBonus?.type === 'lives' ? 3 + characterBonus.value : 3;
+            setLives(baseLives);
+            // Сбрасываем использованную защиту
+            if (characterBonus?.type === 'protection') {
+              setCharacterBonus(prev => ({...prev, used: false}));
+            }
+          };
+
+          const getLevelColor = () => {
+            const colors = {
+              1: 'text-green-400',
+              2: 'text-blue-400',
+              3: 'text-purple-400'
+            };
+            return colors[gameLevel] || 'text-green-400';
+          };
+
+          const getProgressPercentage = () => {
+            return Math.min((score / difficultyLevels[gameLevel].targetScore) * 100, 100);
+          };
+
+          const getRarityColor = (rarity) => {
+            const colors = {
+              uncommon: 'text-green-400',
+              rare: 'text-blue-400',
+              epic: 'text-purple-400',
+              legendary: 'text-yellow-400',
+              mythic: 'text-red-400'
+            };
+            return colors[rarity] || 'text-gray-400';
+          };
+
+          const getRarityBg = (rarity) => {
+            const colors = {
+              uncommon: 'bg-green-500/20 border-green-400',
+              rare: 'bg-blue-500/20 border-blue-400',
+              epic: 'bg-purple-500/20 border-purple-400',
+              legendary: 'bg-yellow-500/20 border-yellow-400',
+              mythic: 'bg-red-500/20 border-red-400'
+            };
+            return colors[rarity] || 'bg-gray-500/20 border-gray-400';
+          };
+
+          const getCurrentRegion = () => {
+            return regions.find(region => region.id === userProfile?.region) || regions[0];
+          };
+
+          const getLifeColor = (lifeIndex) => {
+            if (lifeIndex < lives) {
+              return lives === 1 ? 'text-red-500 animate-pulse' : 'text-red-400';
+            }
+            return 'text-gray-600';
+          };
+
+          const getRarityBorderColor = (rarity) => {
+            const colors = {
+              uncommon: 'border-green-400',
+              rare: 'border-blue-400',
+              epic: 'border-purple-400',
+              legendary: 'border-yellow-400',
+              mythic: 'border-red-400'
+            };
+            return colors[rarity] || 'border-gray-400';
+          };
+
+          const canAffordCrafting = (recipe) => {
+            return Object.entries(recipe.cost).every(([resource, amount]) => 
+              collectedResources[resource] >= amount
+            );
+          };
+
+          // Навигационная панель
+          const Navigation = () => (
+            <div className="flex justify-center mb-6 bg-black/50 backdrop-blur-sm rounded-full p-2 border border-white/10">
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentTab('game')}
+                  className={`px-6 py-3 rounded-full font-bold transition-all ${
+                    currentTab === 'game' 
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
+                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                  }`}
+                >
+                  🎮 Игра
+                </button>
+                <button
+                  onClick={() => setCurrentTab('profile')}
+                  className={`px-6 py-3 rounded-full font-bold transition-all ${
+                    currentTab === 'profile' 
+                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white' 
+                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                  }`}
+                >
+                  👤 Профиль
+                </button>
+                <button
+                  onClick={() => setCurrentTab('shop')}
+                  className={`px-6 py-3 rounded-full font-bold transition-all ${
+                    currentTab === 'shop' 
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white' 
+                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                  }`}
+                >
+                  🛍️ Магазин
+                </button>
+                <button
+                  onClick={() => setCurrentTab('crafting')}
+                  className={`px-6 py-3 rounded-full font-bold transition-all ${
+                    currentTab === 'crafting' 
+                      ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white' 
+                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                  }`}
+                >
+                  🛠️ Крафтинг
+                </button>
+                <button
+                  onClick={() => setShowLeaderboard(true)}
+                  className="px-6 py-3 rounded-full font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transition-all"
+                >
+                  🏆 Лидеры
+                </button>
+              </div>
+            </div>
+          );
+
+          // Компонент крафтинга
+          const CraftingTab = () => {
+            return (
+              <div className="max-w-6xl mx-auto">
+                <div className="bg-black/50 backdrop-blur-sm rounded-2xl p-8 border border-orange-500/30">
+                  <div className="flex justify-between items-center mb-8">
+                    <div>
+                      <h2 className="text-4xl font-bold text-orange-400">🛠️ Космический Крафтинг</h2>
+                      <p className="text-gray-400 mt-2">Создавайте полезные модули и улучшения для вашей космической станции!</p>
+                    </div>
+                    <div className="bg-orange-500/20 px-4 py-2 rounded-full border border-orange-400">
+                      <span className="text-xl font-bold text-orange-400">Собранные ресурсы</span>
+                    </div>
+                  </div>
+
+                  {/* Отображение ресурсов */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+                    {Object.entries({
+                      metal: { name: 'Металл', icon: '🛰️', color: 'bg-blue-500' },
+                      plastic: { name: 'Пластик', icon: '📦', color: 'bg-purple-500' },
+                      electronics: { name: 'Электроника', icon: '⚡', color: 'bg-yellow-500' },
+                      containers: { name: 'Контейнеры', icon: '💧', color: 'bg-cyan-500' },
+                      organic: { name: 'Органика', icon: '🍱', color: 'bg-green-500' },
+                      textile: { name: 'Текстиль', icon: '👕', color: 'bg-red-500' },
+                      medical: { name: 'Медицина', icon: '💊', color: 'bg-pink-500' }
+                    }).map(([resource, info]) => (
+                      <div key={resource} className="bg-gray-800/50 rounded-lg p-4 text-center">
+                        <div className={`text-2xl mb-2 ${info.color} w-12 h-12 rounded-full flex items-center justify-center mx-auto`}>
+                          {info.icon}
+                        </div>
+                        <p className="font-bold text-white">{info.name}</p>
+                        <p className="text-2xl text-yellow-400">{collectedResources[resource] || 0}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Активное строительство */}
+                  {activeCrafting && (
+                    <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-xl p-6 mb-8 border border-orange-400">
+                      <h3 className="text-2xl font-bold mb-4 text-orange-400">🚀 Строительство в процессе</h3>
+                      <div className="flex items-center gap-6">
+                        <div className="text-6xl">{activeCrafting.icon}</div>
+                        <div className="flex-1">
+                          <h4 className="text-xl font-bold text-white mb-2">{activeCrafting.name}</h4>
+                          <p className="text-gray-300 mb-3">{activeCrafting.description}</p>
+                          <div className="w-full bg-gray-700 rounded-full h-4">
+                            <div 
+                              className="bg-gradient-to-r from-orange-500 to-red-500 h-4 rounded-full progress-bar"
+                              style={{ width: `${craftingProgress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-orange-300 text-sm mt-2">
+                            {Math.round(craftingProgress)}% завершено • Осталось: {Math.ceil((100 - craftingProgress) / (100 / activeCrafting.buildTime))}с
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Построенные модули */}
+                  {craftingItems.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold mb-4 text-green-400">✅ Построенные модули</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {craftingItems.map((item, index) => (
+                          <div key={index} className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg p-4 border border-green-400">
+                            <div className="flex items-center gap-4">
+                              <div className="text-4xl">{item.icon}</div>
+                              <div>
+                                <h4 className="text-lg font-bold text-white">{item.name}</h4>
+                                <p className="text-green-300 text-sm">{item.benefits}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Доступные рецепты крафта */}
+                  <div>
+                    <h3 className="text-2xl font-bold mb-4 text-blue-400">📋 Доступные проекты</h3>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {craftingRecipes.map(recipe => {
+                        const canCraft = canAffordCrafting(recipe);
+                        const isBuilding = activeCrafting?.id === recipe.id;
+                        const isBuilt = craftingItems.some(item => item.id === recipe.id);
+
+                        return (
+                          <div
+                            key={recipe.id}
+                            className={`rounded-xl p-6 border-2 transition-all crafting-item ${
+                              isBuilt 
+                                ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400'
+                                : canCraft
+                                  ? 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-blue-400'
+                                  : 'bg-gradient-to-br from-gray-700 to-gray-800 border-gray-600 opacity-70'
+                            } ${getRarityBg(recipe.rarity)}`}
+                          >
+                            <div className="text-center">
+                              <div className="text-6xl mb-4 animate-float">{recipe.icon}</div>
+                              <h3 className="text-xl font-bold text-white mb-2">{recipe.name}</h3>
+                              <p className="text-gray-300 mb-3 text-sm">{recipe.description}</p>
+                              
+                              <div className="bg-black/30 rounded-lg p-3 mb-3">
+                                <p className="text-green-300 text-sm font-semibold">🎯 Преимущество: {recipe.benefits}</p>
+                              </div>
+
+                              {/* Стоимость крафта */}
+                              <div className="mb-4">
+                                <p className="text-yellow-400 font-bold mb-2">📦 Необходимые ресурсы:</p>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  {Object.entries(recipe.cost).map(([resource, amount]) => {
+                                    const hasEnough = collectedResources[resource] >= amount;
+                                    const resourceInfo = {
+                                      metal: { icon: '🛰️', name: 'Металл' },
+                                      plastic: { icon: '📦', name: 'Пластик' },
+                                      electronics: { icon: '⚡', name: 'Электроника' },
+                                      containers: { icon: '💧', name: 'Контейнеры' },
+                                      organic: { icon: '🍱', name: 'Органика' },
+                                      textile: { icon: '👕', name: 'Текстиль' },
+                                      medical: { icon: '💊', name: 'Медицина' }
+                                    }[resource];
+
+                                    return (
+                                      <div key={resource} className={`flex items-center justify-between p-1 rounded ${
+                                        hasEnough ? 'bg-green-500/20' : 'bg-red-500/20'
+                                      }`}>
+                                        <span>{resourceInfo.icon} {resourceInfo.name}</span>
+                                        <span className={hasEnough ? 'text-green-400' : 'text-red-400'}>
+                                          {collectedResources[resource] || 0}/{amount}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className={`inline-block mb-4 px-3 py-1 rounded-full ${getRarityBg(recipe.rarity)}`}>
+                                <span className={`font-bold ${getRarityColor(recipe.rarity)}`}>
+                                  {recipe.rarity.toUpperCase()}
+                                </span>
+                              </div>
+
+                              <div className="text-sm text-gray-400 mb-3">
+                                ⏱️ Время строительства: {recipe.buildTime}с
+                              </div>
+
+                              <button
+                                onClick={() => handleCraftItem(recipe)}
+                                disabled={!canCraft || isBuilding || isBuilt || activeCrafting}
+                                className={`w-full py-3 rounded-lg font-bold text-sm transition-all ${
+                                  isBuilt
+                                    ? 'bg-green-600 cursor-not-allowed'
+                                    : isBuilding
+                                      ? 'bg-orange-600 cursor-not-allowed'
+                                      : canCraft && !activeCrafting
+                                        ? 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 animate-build'
+                                        : 'bg-gray-600 cursor-not-allowed'
+                                }`}
+                              >
+                                {isBuilt ? '✅ Построено' : 
+                                 isBuilding ? '🛠️ Строится...' : 
+                                 canCraft ? '🛠️ Начать строительство' : 
+                                 '❌ Недостаточно ресурсов'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          // Компонент профиля
+          const ProfileTab = () => {
+            const [editing, setEditing] = useState(false);
+            const [username, setUsername] = useState(userProfile?.username || '');
+            const [selectedRegion, setSelectedRegion] = useState(userProfile?.region || 'asia');
+
+            const selectedChar = spaceCharacters.find(c => c.id === selectedCharacter);
+            const currentRegion = getCurrentRegion();
+
+            return (
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-black/50 backdrop-blur-sm rounded-2xl p-8 border border-blue-500/30">
+                  <h2 className="text-4xl font-bold text-center mb-8 text-blue-400">👤 Мой Профиль</h2>
+                  
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {/* Основная информация */}
+                    <div className="space-y-6">
+                      <div className="bg-gray-800/50 rounded-xl p-6">
+                        <h3 className="text-2xl font-bold mb-4 text-yellow-400">Основная информация</h3>
+                        
+                        {editing ? (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm text-gray-300 mb-2">Имя игрока:</label>
+                              <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full p-3 bg-gray-700 rounded-lg text-white"
+                                placeholder="Введите имя"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-300 mb-2">Регион:</label>
+                              <select
+                                value={selectedRegion}
+                                onChange={(e) => setSelectedRegion(e.target.value)}
+                                className="w-full p-3 bg-gray-700 rounded-lg text-white"
+                              >
+                                {regions.map(region => (
+                                  <option key={region.id} value={region.id}>
+                                    {region.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  handleProfileUpdate({ 
+                                    username: username,
+                                    region: selectedRegion
+                                  });
+                                  setEditing(false);
+                                }}
+                                className="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded-lg font-bold"
+                              >
+                                Сохранить
+                              </button>
+                              <button
+                                onClick={() => setEditing(false)}
+                                className="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded-lg font-bold"
+                              >
+                                Отмена
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg">Имя:</span>
+                              <span className="text-xl font-bold">{userProfile?.username}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg">Регион:</span>
+                              <span className="text-xl font-bold">{currentRegion.name}</span>
+                            </div>
+                            <button
+                              onClick={() => setEditing(true)}
+                              className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg font-bold"
+                            >
+                              ✏️ Редактировать профиль
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-gray-800/50 rounded-xl p-6">
+                        <h3 className="text-2xl font-bold mb-4 text-green-400">Статистика</h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span>Уровень:</span>
+                            <span className="font-bold text-yellow-400">{userProfile?.level}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Монеты:</span>
+                            <span className="font-bold text-yellow-400">{totalCoins} 🪙</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Персонажей:</span>
+                            <span className="font-bold text-green-400">{ownedCharacters.length}/{spaceCharacters.length}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Рекорд дня:</span>
+                            <span className="font-bold text-red-400">{dailyRecord}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Всего переработано:</span>
+                            <span className="font-bold text-cyan-400">{recycledItems} ♻️</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Построено модулей:</span>
+                            <span className="font-bold text-orange-400">{craftingItems.length}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Текущий персонаж */}
+                    <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl p-6 border border-purple-400/30">
+                      <h3 className="text-2xl font-bold mb-4 text-purple-400">Текущий персонаж</h3>
+                      {selectedChar && (
+                        <div className="text-center">
+                          <img 
+                            src={selectedChar.image} 
+                            alt={selectedChar.name}
+                            className={`character-image-large mx-auto mb-4 ${getRarityBorderColor(selectedChar.rarity)}`}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                          <div className="text-8xl mb-4 hidden">{selectedChar.icon}</div>
+                          <h4 className="text-2xl font-bold text-white mb-2">{selectedChar.name}</h4>
+                          <p className="text-yellow-400 mb-1">{selectedChar.country}</p>
+                          <p className="text-gray-300 mb-3">{selectedChar.role}</p>
+                          <p className="text-sm text-gray-400 mb-4">{selectedChar.description}</p>
+                          
+                          <div className="bg-black/30 rounded-lg p-3 mb-3">
+                            <p className="text-sm text-cyan-300 mb-2">🚀 Миссия: {selectedChar.mission}</p>
+                            <p className="text-sm text-green-300">⏱️ Продолжительность: {selectedChar.duration}</p>
+                          </div>
+
+                          {selectedChar.bonus && (
+                            <div className="bg-yellow-500/20 rounded-lg p-3 mb-3 border border-yellow-400">
+                              <p className="text-sm font-bold text-yellow-400">🎯 Активный бонус:</p>
+                              <p className="text-white">{selectedChar.bonus.description}</p>
+                            </div>
+                          )}
+                          
+                          <div className={`inline-block px-3 py-1 rounded-full ${getRarityBg(selectedChar.rarity)}`}>
+                            <span className={`font-bold ${getRarityColor(selectedChar.rarity)}`}>
+                              {selectedChar.rarity.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Коллекция персонажей */}
+                  <div className="mt-8">
+                    <h3 className="text-2xl font-bold mb-4 text-cyan-400">Моя коллекция</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {spaceCharacters.filter(char => ownedCharacters.includes(char.id)).map(character => (
+                        <div
+                          key={character.id}
+                          className={`bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg p-4 text-center cursor-pointer transition-all ${
+                            selectedCharacter === character.id ? 'ring-4 ring-yellow-400 scale-105' : 'hover:scale-105'
+                          }`}
+                          onClick={() => handleSelectCharacter(character.id)}
+                        >
+                          <img 
+                            src={character.image} 
+                            alt={character.name}
+                            className={`character-image mx-auto mb-2 ${getRarityBorderColor(character.rarity)}`}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                          <div className="text-4xl mb-2 hidden">{character.icon}</div>
+                          <p className="font-bold text-sm">{character.name}</p>
+                          <p className="text-xs text-gray-400">{character.role}</p>
+                          {character.bonus && (
+                            <p className="text-xs text-green-400 mt-1">{character.bonus.icon} {character.bonus.description}</p>
+                          )}
+                          {selectedCharacter === character.id && (
+                            <p className="text-green-400 text-xs mt-1">✅ Выбран</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          // Компонент магазина
+          const ShopTab = () => {
+            const [selectedCharacterDetail, setSelectedCharacterDetail] = useState(null);
+
+            const openCharacterDetail = (character) => {
+              setSelectedCharacterDetail(character);
+            };
+
+            const closeCharacterDetail = () => {
+              setSelectedCharacterDetail(null);
+            };
+
+            return (
+              <div className="max-w-6xl mx-auto">
+                <div className="bg-black/50 backdrop-blur-sm rounded-2xl p-8 border border-green-500/30">
+                  <div className="flex justify-between items-center mb-8">
+                    <div>
+                      <h2 className="text-4xl font-bold text-green-400">🛍️ Космический Магазин</h2>
+                      <p className="text-gray-400 mt-2">Соберите коллекцию великих космонавтов и ученых! Каждый дает уникальные бонусы.</p>
+                    </div>
+                    <div className="bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-400">
+                      <span className="text-xl font-bold text-yellow-400">{totalCoins} 🪙</span>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {spaceCharacters.map(character => {
+                      const isOwned = ownedCharacters.includes(character.id);
+                      const canBuy = totalCoins >= character.price && !isOwned;
+                      const isSelected = selectedCharacter === character.id;
+
+                      return (
+                        <div
+                          key={character.id}
+                          className={`rounded-xl p-6 border-2 transition-all ${
+                            isOwned
+                              ? isSelected
+                                ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-400'
+                                : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400'
+                              : 'bg-gradient-to-br from-gray-700 to-gray-800 border-gray-600'
+                          } ${getRarityBg(character.rarity)}`}
+                        >
+                          <div className="text-center">
+                            <img 
+                              src={character.image} 
+                              alt={character.name}
+                              className={`character-image mx-auto mb-4 ${getRarityBorderColor(character.rarity)}`}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                            <div className="text-6xl mb-4 hidden">{character.icon}</div>
+                            <h3 className="text-xl font-bold text-white mb-2">{character.name}</h3>
+                            <p className="text-yellow-400 mb-1">{character.country}</p>
+                            <p className="text-gray-300 mb-3">{character.role}</p>
+                            <p className="text-sm text-gray-400 mb-4">{character.description}</p>
+                            
+                            {character.bonus && (
+                              <div className="bg-yellow-500/10 rounded-lg p-2 mb-3 border border-yellow-400/30">
+                                <p className="text-xs font-bold text-yellow-400">{character.bonus.icon} {character.bonus.description}</p>
+                              </div>
+                            )}
+                            
+                            <div className={`inline-block mb-4 px-3 py-1 rounded-full ${getRarityBg(character.rarity)}`}>
+                              <span className={`font-bold ${getRarityColor(character.rarity)}`}>
+                                {character.rarity.toUpperCase()}
+                              </span>
+                            </div>
+
+                            <div className="space-y-3">
+                              <div className="text-2xl font-bold text-yellow-400">
+                                {character.price} 🪙
+                              </div>
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => openCharacterDetail(character)}
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded-lg font-bold text-sm"
+                                >
+                                  📚 Подробнее
+                                </button>
+                                
+                                {isOwned ? (
+                                  <button
+                                    onClick={() => handleSelectCharacter(character.id)}
+                                    disabled={isSelected}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm ${
+                                      isSelected
+                                        ? 'bg-yellow-600 cursor-not-allowed'
+                                        : 'bg-green-600 hover:bg-green-700'
+                                    }`}
+                                  >
+                                    {isSelected ? '✅ Выбран' : '🎯 Выбрать'}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleBuyCharacter(character)}
+                                    disabled={!canBuy}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm ${
+                                      canBuy
+                                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                                        : 'bg-gray-600 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    {canBuy ? '🛒 Купить' : '❌ Недостаточно'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Модальное окно с детальной информацией о персонаже */}
+                {selectedCharacterDetail && (
+                  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-yellow-400">
+                      <div className="flex justify-between items-start mb-6">
+                        <h3 className="text-3xl font-bold text-yellow-400">{selectedCharacterDetail.name}</h3>
+                        <button
+                          onClick={closeCharacterDetail}
+                          className="text-2xl hover:text-red-400 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div className="text-center">
+                          <img 
+                            src={selectedCharacterDetail.image} 
+                            alt={selectedCharacterDetail.name}
+                            className={`character-image-large mx-auto mb-4 ${getRarityBorderColor(selectedCharacterDetail.rarity)}`}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                          <div className="text-8xl mb-4 hidden">{selectedCharacterDetail.icon}</div>
+                          <p className="text-2xl text-yellow-400 mb-2">{selectedCharacterDetail.country}</p>
+                          <p className="text-xl text-gray-300 mb-4">{selectedCharacterDetail.role}</p>
+                          
+                          {selectedCharacterDetail.bonus && (
+                            <div className="bg-yellow-500/20 rounded-lg p-4 mb-4 border border-yellow-400">
+                              <p className="text-lg font-bold text-yellow-400">🎯 Игровой бонус</p>
+                              <p className="text-white text-sm">{selectedCharacterDetail.bonus.description}</p>
+                            </div>
+                          )}
+                          
+                          <div className={`inline-block px-4 py-2 rounded-full ${getRarityBg(selectedCharacterDetail.rarity)}`}>
+                            <span className={`font-bold text-lg ${getRarityColor(selectedCharacterDetail.rarity)}`}>
+                              {selectedCharacterDetail.rarity.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="text-lg font-bold text-cyan-400 mb-2">Биография</h4>
+                            <p className="text-gray-300 text-sm">{selectedCharacterDetail.fullBio}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-lg font-bold text-green-400 mb-2">Достижения</h4>
+                            <ul className="text-gray-300 text-sm space-y-1">
+                              {selectedCharacterDetail.achievements.map((achievement, index) => (
+                                <li key={index}>• {achievement}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-black/30 rounded-lg p-3">
+                              <p className="text-cyan-300 text-sm">🚀 Миссия</p>
+                              <p className="text-white font-bold">{selectedCharacterDetail.mission}</p>
+                            </div>
+                            <div className="bg-black/30 rounded-lg p-3">
+                              <p className="text-green-300 text-sm">⏱️ Продолжительность</p>
+                              <p className="text-white font-bold">{selectedCharacterDetail.duration}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          };
+
+          // Футер с информацией о NASA Space Apps и NeoMars
+          const Footer = () => (
+            <div className="mt-8 text-center text-gray-400 text-sm">
+              <div className="bg-black/30 rounded-lg p-4 border border-white/10">
+                <p className="mb-2">
+                  🚀 Разработано для <span className="text-blue-400 font-bold">NASA Space Apps Challenge 2025</span>
+                </p>
+                <p className="mb-2">
+                  🌟 Команда: <span className="text-green-400 font-bold">NeoMars</span> - Коммерциализация низкой околоземной орбиты
+                </p>
+                <p>
+                  💰 Создаем устойчивую экономику в космосе!
+                </p>
+              </div>
+            </div>
+          );
+
+          return (
+            <div className="min-h-screen bg-gradient-to-b from-black via-blue-950 to-purple-900 text-white overflow-hidden">
+              <div className="absolute inset-0 overflow-hidden">
+                {[...Array(50)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                      animationDelay: `${Math.random() * 3}s`
+                    }}
+                  />
+                ))}
+              </div>
+
+              {!gameStarted && currentTab === 'game' ? (
+                <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
+                  <div className="text-center space-y-6 max-w-2xl">
+                    <div className="text-8xl mb-8 animate-bounce">🌍</div>
+                    <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent">
+                      SpaceTrash
+                    </h1>
+                    <p className="text-3xl font-semibold text-blue-300 mb-4">
+                      LEO Commercial Revolution
+                    </p>
+                    
+                    <div className="bg-blue-500/20 rounded-lg p-4 border border-blue-400 mb-4">
+                      <p className="text-lg font-bold text-cyan-400">
+                        🚀 NASA Space Apps Challenge 2025
+                      </p>
+                      <p className="text-white">
+                        Команда <span className="text-green-400 font-bold">NeoMars</span>
+                      </p>
+                    </div>
+                    
+                    <p className="text-xl text-gray-300 mb-8">
+                      Управляйте коммерческой станцией на низкой околоземной орбите и превращайте космический мусор в прибыльные ресурсы!
+                    </p>
+                    
+                    <Navigation />
+                    
+                    <div className="bg-black/50 backdrop-blur-sm rounded-lg p-6 mb-8 border border-blue-500/30">
+                      <h3 className="text-2xl font-bold mb-4 text-yellow-400">Коммерческие данные LEO:</h3>
+                      <div className="text-left space-y-3 text-lg">
+                        <p>🛰️ В LEO работает более 6000 коммерческих спутников</p>
+                        <p>💼 Рынок космических услуг достигнет $1.4 трлн к 2030</p>
+                        <p>♻️ NASA развивает коммерческую утилизацию на орбите</p>
+                        <p>⏱️ 3 уровня управления коммерческой станцией</p>
+                        <p>🛠️ Стройте модули из переработанных материалов</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 justify-center">
+                      <button
+                        onClick={() => setGameStarted(true)}
+                        className="px-12 py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full text-2xl font-bold transform hover:scale-105 transition-all shadow-2xl"
+                      >
+                        🚀 Начать Миссию
+                      </button>
+                    </div>
+
+                    <Footer />
+                  </div>
+                </div>
+              ) : gameOver && currentTab === 'game' ? (
+                <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
+                  <div className="text-center space-y-6 max-w-2xl bg-black/70 backdrop-blur-sm rounded-2xl p-8 border border-yellow-500/50">
+                    <div className="text-8xl mb-4">{score >= difficultyLevels[3].targetScore ? '🏆' : '💀'}</div>
+                    <h1 className="text-5xl font-bold text-yellow-400 mb-4">
+                      {score >= difficultyLevels[3].targetScore ? 'Миссия Выполнена!' : 'Потеряны все жизни!'}
+                    </h1>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-gray-800/50 p-4 rounded-lg">
+                        <p className="text-2xl font-bold text-green-400">{score}</p>
+                        <p className="text-gray-300">Финальный счёт</p>
+                      </div>
+                      <div className="bg-gray-800/50 p-4 rounded-lg">
+                        <p className="text-2xl font-bold text-blue-400">{recycledItems}</p>
+                        <p className="text-gray-300">Переработано</p>
+                      </div>
+                      <div className="bg-gray-800/50 p-4 rounded-lg">
+                        <p className="text-2xl font-bold text-purple-400">{gameLevel}</p>
+                        <p className="text-gray-300">Достигнутый уровень</p>
+                      </div>
+                      <div className="bg-gray-800/50 p-4 rounded-lg">
+                        <p className="text-2xl font-bold text-yellow-400">{dailyRecord}</p>
+                        <p className="text-gray-300">Рекорд дня</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-green-500/20 p-4 rounded-lg border border-green-400 mb-4">
+                      <p className="text-lg font-bold text-green-400">
+                        🎉 Получено {Math.floor(score / 10)} монет! Всего: {totalCoins} 🪙
+                      </p>
+                    </div>
+
+                    <div className="flex gap-4 justify-center">
+                      <button
+                        onClick={restartGame}
+                        className="px-8 py-4 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 rounded-full text-xl font-bold transform hover:scale-105 transition-all"
+                      >
+                        🔄 Новая Игра
+                      </button>
+                      <button
+                        onClick={() => setShowLeaderboard(true)}
+                        className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-full text-xl font-bold transform hover:scale-105 transition-all"
+                      >
+                        🏆 Таблица лидеров
+                      </button>
+                    </div>
+
+                    <Footer />
+                  </div>
+                </div>
+              ) : showLeaderboard ? (
+                <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8">
+                  <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-8 border border-blue-500/50 max-w-2xl w-full">
+                    <h2 className="text-4xl font-bold text-center mb-6 text-yellow-400">🏆 Лучшие Операторы LEO</h2>
+                    
+                    <div className="mb-6 bg-blue-900/30 p-4 rounded-lg">
+                      <h3 className="text-xl font-bold text-center text-cyan-400 mb-2">Рекорд Дня</h3>
+                      <p className="text-3xl font-bold text-center text-yellow-400">{dailyRecord} очков</p>
+                    </div>
+
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {leaderboard.map((player, index) => (
+                        <div key={index} className={`flex justify-between items-center p-3 rounded-lg ${
+                          index === 0 ? 'bg-yellow-500/20 border border-yellow-400' : 
+                          index < 3 ? 'bg-blue-500/20' : 'bg-gray-700/50'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <span className={`text-lg font-bold ${
+                              index === 0 ? 'text-yellow-400' : 
+                              index === 1 ? 'text-gray-300' : 
+                              index === 2 ? 'text-orange-400' : 'text-gray-400'
+                            }`}>
+                              #{index + 1}
+                            </span>
+                            <div>
+                              <span className="font-semibold">{player.name}</span>
+                              <span className="text-xs text-gray-400 ml-2">
+                                {regions.find(r => r.id === player.region)?.flag}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-green-400">{player.score} pts</p>
+                            <p className="text-sm text-gray-400">Ур. {player.level} • {player.recycled} ♻️</p>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {leaderboard.length === 0 && (
+                        <p className="text-center text-gray-400 py-8">Пока нет рекордов. Станьте первым!</p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => setShowLeaderboard(false)}
+                      className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full text-lg font-bold transform hover:scale-105 transition-all"
+                    >
+                      🎮 Вернуться к Игре
+                    </button>
+
+                    <Footer />
+                  </div>
+                </div>
+              ) : currentTab === 'profile' ? (
+                <div className="relative z-10 p-4 md:p-8">
+                  <Navigation />
+                  <ProfileTab />
+                  <Footer />
+                </div>
+              ) : currentTab === 'shop' ? (
+                <div className="relative z-10 p-4 md:p-8">
+                  <Navigation />
+                  <ShopTab />
+                  <Footer />
+                </div>
+              ) : currentTab === 'crafting' ? (
+                <div className="relative z-10 p-4 md:p-8">
+                  <Navigation />
+                  <CraftingTab />
+                  <Footer />
+                </div>
+              ) : (
+                <div className="relative z-10 p-4 md:p-8">
+                  <Navigation />
+                  
+                  {/* Верхняя панель с информацией */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-black/50 backdrop-blur-sm rounded-lg p-4 space-y-2 md:space-y-0">
+                    <div>
+                      <h1 className="text-2xl md:text-3xl font-bold text-blue-400">SpaceTrash</h1>
+                      <p className="text-gray-300">NASA LEO Commercial Systems • NeoMars Team</p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-4 items-center">
+                      <div className={`text-lg font-bold ${getLevelColor()} bg-black/30 px-3 py-1 rounded-full`}>
+                        УРОВЕНЬ {gameLevel}: {difficultyLevels[gameLevel].name}
+                      </div>
+                      
+                      {/* Отображение жизней */}
+                      <div className="flex items-center gap-1 bg-red-500/20 px-3 py-1 rounded-full border border-red-400">
+                        {[1, 2, 3, 4, 5].map((life) => (
+                          <span key={life} className={`text-xl ${getLifeColor(life)}`}>
+                            {life <= lives ? '❤️' : '♡'}
+                          </span>
+                        ))}
+                        <span className="text-white text-sm ml-1">{lives}</span>
+                      </div>
+
+                      <div className={`text-2xl font-bold ${
+                        timeLeft < 15 ? 'text-red-400 animate-pulse' : 'text-yellow-400'
+                      }`}>
+                        ⏱️ {formatTime(timeLeft)}
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🏆</span>
+                          <span className="text-2xl font-bold text-yellow-400">{score}</span>
+                          <span className="text-gray-400">/ {difficultyLevels[gameLevel].targetScore}</span>
+                        </div>
+                        <div className="text-sm text-gray-300">
+                          ♻️ {recycledItems} переработано
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Активный бонус */}
+                  {characterBonus && (
+                    <div className="mb-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg p-3 border border-yellow-400">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{characterBonus.icon}</span>
+                        <div>
+                          <p className="font-bold text-yellow-400">Активный бонус</p>
+                          <p className="text-white text-sm">{characterBonus.description}</p>
+                        </div>
+                        {characterBonus.type === 'protection' && characterBonus.used && (
+                          <span className="ml-auto text-red-400 text-sm">🛡️ Защита использована</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Прогресс бар */}
+                  <div className="mb-6 bg-gray-700/50 rounded-full h-4">
+                    <div 
+                      className="bg-gradient-to-r from-green-500 to-yellow-500 h-4 rounded-full transition-all duration-500"
+                      style={{ width: `${getProgressPercentage()}%` }}
+                    ></div>
+                  </div>
+
+                  {/* Факты NASA для текущего уровня */}
+                  <div className="mb-6 bg-blue-900/30 backdrop-blur-sm rounded-lg p-4 border border-blue-500/30">
+                    <div className="flex items-center gap-2 text-blue-300 mb-2">
+                      <span className="text-xl">🚀</span>
+                      <span className="font-bold">NASA УРОВЕНЬ {gameLevel}:</span>
+                    </div>
+                    <p className="text-white text-lg mb-1">{nasaFactsByLevel[gameLevel][currentFact].data}</p>
+                    <p className="text-green-300 text-sm">🎯 {nasaFactsByLevel[gameLevel][currentFact].impact}</p>
+                    <p className="text-blue-400 text-xs mt-1">Источник: {nasaFactsByLevel[gameLevel][currentFact].source}</p>
+                  </div>
+
+                  {/* Игровое поле со спутниками */}
+                  <div className="relative h-64 mb-8 bg-gradient-to-b from-transparent to-blue-900/20 rounded-lg border-2 border-blue-500/30">
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-lg">
+                      {floatingTrash.length === 0 && "Космический мусор приближается..."}
+                    </div>
+                    
+                    {/* Спутники */}
+                    {satellites.map(satellite => (
+                      <button
+                        key={satellite.id}
+                        id={`satellite-${satellite.id}`}
+                        onClick={() => handleSatelliteClick(satellite)}
+                        className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all hover:scale-110 cursor-pointer text-2xl animate-float"
+                        style={{
+                          left: `${satellite.x}%`,
+                          top: `${satellite.y}%`
+                        }}
+                        title={`${satellite.name} (-${Math.abs(satellite.points)} очков, -1 жизнь)`}
+                      >
+                        {satellite.icon}
+                      </button>
+                    ))}
+                    
+                    {/* Плавающий мусор */}
+                    {floatingTrash.map(trash => (
+                      <button
+                        key={trash.uniqueId}
+                        onClick={() => handleTrashClick(trash)}
+                        className="absolute transform -translate-x-1/2 transition-all hover:scale-125 cursor-pointer text-3xl animate-pulse"
+                        style={{
+                          left: `${trash.x}%`,
+                          top: `${trash.y}%`
+                        }}
+                      >
+                        {trash.icon}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Информация о выбранном мусоре */}
+                  {selectedTrash && showInfo && (
+                    <div className="mb-8 bg-gradient-to-r from-black/80 to-gray-900/80 backdrop-blur-sm rounded-lg p-6 border-2 border-yellow-400">
+                      <div className="flex items-center gap-4 mb-4">
+                        <span className="text-5xl">{selectedTrash.icon}</span>
+                        <div>
+                          <h3 className="text-2xl font-bold text-yellow-400">{selectedTrash.name}</h3>
+                          <p className="text-green-400 font-semibold">
+                            +{Math.floor(selectedTrash.points * (characterBonus?.type === 'score' ? characterBonus.value : 1))} очков
+                            {characterBonus?.type === 'score' && ` (×${characterBonus.value})`}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-gray-300 mb-3">{selectedTrash.info}</p>
+                      <div className="bg-blue-900/30 p-3 rounded-lg mb-3">
+                        <p className="text-cyan-300 text-sm font-semibold">🚀 NASA ИНФО:</p>
+                        <p className="text-cyan-200">{selectedTrash.nasaFact}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-green-400">
+                        <span>♻️</span>
+                        <span className="font-semibold">Превращается в: {selectedTrash.recycleInto}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-orange-400 mt-2">
+                        <span>🛠️</span>
+                        <span className="font-semibold">Ресурс: +1 {selectedTrash.resource}</span>
+                      </div>
+                      <p className="text-yellow-300 mt-4 font-bold animate-bounce">
+                        👇 Бросьте в правильный контейнер!
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Контейнеры для переработки */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+                    {recyclingBins.map(bin => (
+                      <button
+                        key={bin.category}
+                        id={`bin-${bin.category}`}
+                        onClick={() => handleRecycle(bin)}
+                        className={`${bin.color} ${
+                          selectedTrash?.category === bin.category ? 'ring-4 ring-yellow-400 scale-105' : ''
+                        } rounded-lg p-4 text-center transform hover:scale-105 transition-all shadow-xl cursor-pointer`}
+                      >
+                        <div className="text-2xl mb-1">🗑️</div>
+                        <p className="font-bold text-xs">{bin.name}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Описание уровня */}
+                  <div className="bg-black/50 backdrop-blur-sm rounded-lg p-4 border border-cyan-500/30">
+                    <h3 className="text-lg font-bold mb-2 text-cyan-400 flex items-center gap-2">
+                      🎯 Уровень {gameLevel}: {difficultyLevels[gameLevel].name}
+                    </h3>
+                    <p className="text-gray-300 text-sm mb-2">{difficultyLevels[gameLevel].description}</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex justify-between">
+                        <span>Цель:</span>
+                        <span className="font-bold">{difficultyLevels[gameLevel].targetScore} очков</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Сложность:</span>
+                        <span className="font-bold">{gameLevel}/3</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Предупреждение о спутниках */}
+                  <div className="mt-4 bg-red-900/30 backdrop-blur-sm rounded-lg p-3 border border-red-500/50">
+                    <p className="text-red-300 text-sm text-center">
+                      ⚠️ Осторожно! Спутники отнимают жизни при клике {characterBonus?.type === 'protection' && !characterBonus.used && ' (есть защита)'}
+                    </p>
+                  </div>
+
+                  <Footer />
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SpaceTrashApp />);
+    </script>
+</body>
+</html>
